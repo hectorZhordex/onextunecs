@@ -112,13 +112,9 @@
 
 @layer utilities {
   .glass-card {
-    @apply backdrop-blur-xl bg-white/5 rounded-3xl saturate-150;
-    box-shadow:
-      0 8px 32px 0 rgba(0, 0, 0, 0.35),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.03),
-      inset 1px 0 0 rgba(255, 255, 255, 0.05),
-      inset -1px 0 0 rgba(255, 255, 255, 0.05);
+    @apply backdrop-blur-xl rounded-3xl;
+    background: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 8px 40px 0 rgba(0, 0, 0, 0.45);
   }
   
   .glass-panel {
