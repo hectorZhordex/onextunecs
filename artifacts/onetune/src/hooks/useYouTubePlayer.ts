@@ -77,6 +77,7 @@ export function useYouTubePlayer({
   containerId,
 }: UseYouTubePlayerOptions) {
   const playerRef = useRef<YTPlayerInstance | null>(null);
+  const playerReadyRef = useRef(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -130,6 +131,7 @@ export function useYouTubePlayer({
       if (playerRef.current) {
         try { playerRef.current.destroy(); } catch (_) {}
         playerRef.current = null;
+        playerReadyRef.current = false;
       }
 
       const container = document.getElementById(containerId);
@@ -142,6 +144,7 @@ export function useYouTubePlayer({
         playerVars: { autoplay: 1, controls: 0, rel: 0, playsinline: 1 },
         events: {
           onReady: (e) => {
+            playerReadyRef.current = true;
             e.target.setVolume(volumeRef.current * 100);
             if (isPlayingRef.current) {
               e.target.playVideo();
@@ -170,16 +173,18 @@ export function useYouTubePlayer({
     };
   }, [videoId, containerId]);
 
-  // Sync play/pause
+  // Sync play/pause — only when player is fully ready
   useEffect(() => {
-    if (!playerRef.current) return;
-    if (isPlaying) {
-      playerRef.current.playVideo();
-      startTimer();
-    } else {
-      playerRef.current.pauseVideo();
-      stopTimer();
-    }
+    if (!playerRef.current || !playerReadyRef.current) return;
+    try {
+      if (isPlaying) {
+        playerRef.current.playVideo();
+        startTimer();
+      } else {
+        playerRef.current.pauseVideo();
+        stopTimer();
+      }
+    } catch (_) {}
   }, [isPlaying]);
 
   // Sync volume
