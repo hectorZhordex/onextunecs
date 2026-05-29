@@ -1,120 +1,41 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, ArrowRight, Mail } from "lucide-react";
 import logoImg from "@assets/dotcom_one_(4)_1780057221014.png";
 import { supabase } from "@/lib/supabase";
 
-/* ─── Mouse-tracking glow that follows the cursor ─── */
-function MouseGlow() {
-  const glowRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = glowRef.current;
-    if (!el) return;
-
-    let raf: number;
-    let tx = window.innerWidth / 2;
-    let ty = window.innerHeight / 2;
-    let cx = tx;
-    let cy = ty;
-
-    const onMove = (e: MouseEvent) => {
-      tx = e.clientX;
-      ty = e.clientY;
-    };
-
-    const tick = () => {
-      // Smooth lerp so the glow lags slightly behind cursor
-      cx += (tx - cx) * 0.08;
-      cy += (ty - cy) * 0.08;
-      if (el) {
-        el.style.transform = `translate(${cx - 200}px, ${cy - 200}px)`;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener("mousemove", onMove);
-    raf = requestAnimationFrame(tick);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={glowRef}
-      className="fixed pointer-events-none z-0"
-      style={{
-        width: 400,
-        height: 400,
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,0,107,0.18) 0%, rgba(255,57,13,0.08) 45%, transparent 70%)",
-        filter: "blur(20px)",
-        willChange: "transform",
-      }}
-    />
-  );
-}
-
-/* ─── Drifting smoke orbs (2-3 blobs like the reference) ─── */
+/* ─── Drifting smoke orbs ─── */
 function SmokeOrbs() {
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden">
-      {/* Left pink smoke */}
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: 650,
-          height: 650,
-          left: "-15%",
-          top: "-10%",
+          width: 650, height: 650, left: "-15%", top: "-10%",
           background: "radial-gradient(circle, rgba(255,0,107,0.22) 0%, rgba(255,0,107,0.06) 50%, transparent 70%)",
           filter: "blur(70px)",
         }}
-        animate={{
-          x: [0, 60, 20, 80, 0],
-          y: [0, 40, -20, 60, 0],
-          scale: [1, 1.08, 0.95, 1.05, 1],
-        }}
+        animate={{ x: [0, 60, 20, 80, 0], y: [0, 40, -20, 60, 0], scale: [1, 1.08, 0.95, 1.05, 1] }}
         transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
       />
-
-      {/* Right orange smoke */}
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: 600,
-          height: 600,
-          right: "-12%",
-          bottom: "-15%",
+          width: 600, height: 600, right: "-12%", bottom: "-15%",
           background: "radial-gradient(circle, rgba(255,57,13,0.2) 0%, rgba(255,57,13,0.06) 50%, transparent 70%)",
           filter: "blur(80px)",
         }}
-        animate={{
-          x: [0, -50, -20, -70, 0],
-          y: [0, -50, 20, -40, 0],
-          scale: [1, 1.1, 0.92, 1.06, 1],
-        }}
+        animate={{ x: [0, -50, -20, -70, 0], y: [0, -50, 20, -40, 0], scale: [1, 1.1, 0.92, 1.06, 1] }}
         transition={{ duration: 25, repeat: Infinity, ease: "easeInOut", delay: 3 }}
       />
-
-      {/* Center purple smoke */}
       <motion.div
         className="absolute rounded-full"
         style={{
-          width: 500,
-          height: 500,
-          left: "30%",
-          top: "25%",
+          width: 500, height: 500, left: "30%", top: "25%",
           background: "radial-gradient(circle, rgba(139,0,255,0.14) 0%, rgba(139,0,255,0.04) 50%, transparent 70%)",
           filter: "blur(90px)",
         }}
-        animate={{
-          x: [0, 30, -40, 20, 0],
-          y: [0, -30, 40, -20, 0],
-          scale: [1, 0.9, 1.12, 0.97, 1],
-        }}
+        animate={{ x: [0, 30, -40, 20, 0], y: [0, -30, 40, -20, 0], scale: [1, 0.9, 1.12, 0.97, 1] }}
         transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 6 }}
       />
     </div>
@@ -146,7 +67,11 @@ export default function Login() {
         const { error: err } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { display_name: name.trim() } },
+          options: {
+            data: { display_name: name.trim() },
+            // Always redirect back to wherever the app is running (dev or deployed)
+            emailRedirectTo: window.location.origin,
+          },
         });
         if (err) throw err;
         setVerificationSent(true);
@@ -172,8 +97,6 @@ export default function Login() {
     return (
       <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center bg-background">
         <SmokeOrbs />
-        <MouseGlow />
-
         <motion.div
           initial={{ opacity: 0, y: 24, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -200,7 +123,6 @@ export default function Login() {
             </button>
           </div>
         </motion.div>
-
         <p className="relative z-10 mt-8 text-white/20 text-xs">
           © OneTune {year}. All Rights Reserved
         </p>
@@ -211,9 +133,7 @@ export default function Login() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden flex flex-col items-center justify-center bg-background">
       <SmokeOrbs />
-      <MouseGlow />
 
-      {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: 36, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -236,7 +156,7 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Sign In / Create Account toggle */}
+          {/* Toggle */}
           <div className="flex bg-white/5 rounded-xl p-1 mb-5">
             <button
               data-testid="button-signin-tab"
@@ -354,7 +274,9 @@ export default function Login() {
                 onClick={async () => {
                   if (!email.trim()) { setError("Enter your email above first."); return; }
                   setIsLoading(true);
-                  await supabase.auth.resetPasswordForEmail(email.trim());
+                  await supabase.auth.resetPasswordForEmail(email.trim(), {
+                    redirectTo: window.location.origin,
+                  });
                   setIsLoading(false);
                   setError("");
                   alert(`Password reset email sent to ${email}`);
@@ -368,7 +290,6 @@ export default function Login() {
         </div>
       </motion.div>
 
-      {/* Copyright footer */}
       <p className="relative z-10 mt-8 text-white/20 text-xs tracking-wide">
         © OneTune {year}. All Rights Reserved
       </p>
