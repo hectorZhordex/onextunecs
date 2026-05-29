@@ -14,8 +14,6 @@ const NAV_ITEMS = [
 ];
 
 function GetAppModal({ onClose }: { onClose: () => void }) {
-  const appUrl = window.location.origin;
-
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center"
@@ -42,10 +40,10 @@ function GetAppModal({ onClose }: { onClose: () => void }) {
 
         <ol className="space-y-4 mb-6">
           {[
-            { step: "1", title: "Deploy your app", desc: "Click Deploy in Replit to get your public URL (e.g. onetune.yourname.replit.app)" },
-            { step: "2", title: "Go to PWABuilder", desc: "Visit pwabuilder.com — it's free, no ads, made by Microsoft" },
-            { step: "3", title: "Enter your URL", desc: "Paste your deployed Replit URL and click Start" },
-            { step: "4", title: "Download APK", desc: "Choose Android → download the APK package and install it on your phone" },
+            { step: "1", title: "Download the APK", desc: "Tap the button below to download the OneTune APK file to your device" },
+            { step: "2", title: "Allow unknown sources", desc: 'On your phone go to Settings → Security → enable "Install unknown apps"' },
+            { step: "3", title: "Open the file", desc: "Open the downloaded APK file from your notifications or Downloads folder" },
+            { step: "4", title: "Install & enjoy", desc: "Tap Install — OneTune will appear on your home screen" },
           ].map((item) => (
             <li key={item.step} className="flex gap-3">
               <span
@@ -62,25 +60,14 @@ function GetAppModal({ onClose }: { onClose: () => void }) {
           ))}
         </ol>
 
-        <div className="glass-card rounded-xl p-3 mb-5 flex items-center gap-2">
-          <p className="text-xs text-white/40 flex-1 truncate font-mono">{appUrl}</p>
-          <button
-            onClick={() => navigator.clipboard.writeText(appUrl)}
-            className="text-xs text-primary hover:text-primary/80 font-medium transition-colors flex-none"
-          >
-            Copy URL
-          </button>
-        </div>
-
         <a
-          href="https://www.pwabuilder.com"
-          target="_blank"
-          rel="noopener noreferrer"
+          href="/OneTune.apk.zip"
+          download="OneTune.apk.zip"
           className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-white text-sm mb-3 transition-opacity hover:opacity-90"
           style={{ background: "linear-gradient(135deg, #ff006b, #ff390d)" }}
         >
           <Download className="w-4 h-4" />
-          Open PWABuilder
+          Get App
         </a>
 
         <button
