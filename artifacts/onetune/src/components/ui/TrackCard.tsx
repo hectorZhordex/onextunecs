@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
-export function TrackCard({ track, tracks }: { track: Track; tracks?: Track[] }) {
+export function TrackCard({ track, tracks, className }: { track: Track; tracks?: Track[]; className?: string }) {
   const { playTrack, currentTrack, isPlaying } = usePlayerStore();
   const addToHistory = useAddToHistory();
   const { data: playlists } = useGetPlaylists();
@@ -98,7 +98,7 @@ export function TrackCard({ track, tracks }: { track: Track; tracks?: Track[] })
   return (
     <motion.div
       whileHover={{ y: -4 }}
-      className="glass-card group relative p-3 flex flex-col gap-2 cursor-pointer overflow-hidden transition-all duration-300"
+      className={`glass-card group relative p-3 flex flex-col gap-2 cursor-pointer overflow-hidden transition-all duration-300 ${className ?? ""}`}
       data-testid={`card-track-${track.id}`}
     >
       {/* Artwork */}

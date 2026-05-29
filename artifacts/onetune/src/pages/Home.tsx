@@ -110,7 +110,7 @@ export default function Home() {
                 transition={{ delay: i * 0.04 }}
                 className="flex-none w-40"
               >
-                <TrackCard track={track} tracks={trendingTracks} />
+                <TrackCard track={track} tracks={trendingTracks} className="!shadow-none" />
               </motion.div>
             ))}
           </HScrollRow>
