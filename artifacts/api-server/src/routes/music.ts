@@ -324,6 +324,44 @@ router.get("/tracks/genres", async (_req, res): Promise<void> => {
   res.json(genres);
 });
 
+// YouTube video ID lookup — must be before /:id wildcard
+router.get("/tracks/youtube-id", async (req, res): Promise<void> => {
+  const title = String(req.query.title ?? "");
+  const artist = String(req.query.artist ?? "");
+  const apiKey = process.env.YOUTUBE_API_KEY;
+
+  if (!apiKey) {
+    res.status(500).json({ error: "YOUTUBE_API_KEY not configured", videoId: null });
+    return;
+  }
+  if (!title) {
+    res.status(400).json({ error: "title is required", videoId: null });
+    return;
+  }
+
+  try {
+    const q = encodeURIComponent(`${title} ${artist} official audio`);
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${q}&type=video&videoCategoryId=10&maxResults=1&key=${apiKey}`;
+    const resp = await fetch(url);
+    const data = (await resp.json()) as {
+      items?: { id?: { videoId?: string } }[];
+      error?: { message: string };
+    };
+
+    if (data.error) {
+      req.log.error({ err: data.error }, "YouTube API error");
+      res.json({ videoId: null });
+      return;
+    }
+
+    const videoId = data.items?.[0]?.id?.videoId ?? null;
+    res.json({ videoId });
+  } catch (err) {
+    req.log.error({ err }, "YouTube lookup failed");
+    res.json({ videoId: null });
+  }
+});
+
 router.get("/tracks/:id", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 

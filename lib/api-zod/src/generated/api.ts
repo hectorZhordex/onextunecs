@@ -139,6 +139,19 @@ export const GetGenresResponse = zod.array(GetGenresResponseItem)
 
 
 /**
+ * @summary Look up a YouTube video ID for a track
+ */
+export const GetYoutubeVideoIdQueryParams = zod.object({
+  "title": zod.coerce.string(),
+  "artist": zod.coerce.string().optional()
+})
+
+export const GetYoutubeVideoIdResponse = zod.object({
+  "videoId": zod.string().nullable()
+})
+
+
+/**
  * @summary Get track by id
  */
 export const GetTrackParams = zod.object({

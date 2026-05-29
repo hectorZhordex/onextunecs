@@ -153,6 +153,30 @@ paths:
                 items:
                   $ref: "#/components/schemas/Genre"
 
+  /tracks/youtube-id:
+    get:
+      operationId: getYoutubeVideoId
+      tags: [tracks]
+      summary: Look up a YouTube video ID for a track
+      parameters:
+        - name: title
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: artist
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: YouTube video ID result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YoutubeIdResult"
+
   /tracks/{id}:
     get:
       operationId: getTrack
@@ -442,6 +466,13 @@ components:
           type: ["string", "null"]
         trackNumber:
           type: ["integer", "null"]
+
+    YoutubeIdResult:
+      type: object
+      required: [videoId]
+      properties:
+        videoId:
+          type: ["string", "null"]
 
     Genre:
       type: object

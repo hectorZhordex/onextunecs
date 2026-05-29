@@ -25,6 +25,7 @@ import type {
   Genre,
   GetHistoryParams,
   GetTrendingTracksParams,
+  GetYoutubeVideoIdParams,
   HealthStatus,
   HistoryEntry,
   HistoryInput,
@@ -39,7 +40,8 @@ import type {
   PlaylistWithTracks,
   SearchMusicParams,
   SearchResults,
-  Track
+  Track,
+  YoutubeIdResult
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -595,6 +597,90 @@ export function useGetGenres<TData = Awaited<ReturnType<typeof getGenres>>, TErr
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetGenresQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetYoutubeVideoIdUrl = (params: GetYoutubeVideoIdParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/tracks/youtube-id?${stringifiedParams}` : `/api/tracks/youtube-id`
+}
+
+/**
+ * @summary Look up a YouTube video ID for a track
+ */
+export const getYoutubeVideoId = async (params: GetYoutubeVideoIdParams, options?: RequestInit): Promise<YoutubeIdResult> => {
+
+  return customFetch<YoutubeIdResult>(getGetYoutubeVideoIdUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetYoutubeVideoIdQueryKey = (params?: GetYoutubeVideoIdParams,) => {
+    return [
+    `/api/tracks/youtube-id`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetYoutubeVideoIdQueryOptions = <TData = Awaited<ReturnType<typeof getYoutubeVideoId>>, TError = ErrorType<unknown>>(params: GetYoutubeVideoIdParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYoutubeVideoId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetYoutubeVideoIdQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getYoutubeVideoId>>> = ({ signal }) => getYoutubeVideoId(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getYoutubeVideoId>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetYoutubeVideoIdQueryResult = NonNullable<Awaited<ReturnType<typeof getYoutubeVideoId>>>
+export type GetYoutubeVideoIdQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Look up a YouTube video ID for a track
+ */
+
+export function useGetYoutubeVideoId<TData = Awaited<ReturnType<typeof getYoutubeVideoId>>, TError = ErrorType<unknown>>(
+ params: GetYoutubeVideoIdParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getYoutubeVideoId>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetYoutubeVideoIdQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

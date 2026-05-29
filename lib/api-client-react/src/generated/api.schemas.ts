@@ -28,6 +28,11 @@ export interface Track {
   trackNumber?: number | null;
 }
 
+export interface YoutubeIdResult {
+  /** @nullable */
+  videoId: string | null;
+}
+
 export interface Genre {
   id: string;
   name: string;
@@ -211,6 +216,11 @@ export const SearchMusicType = {
 export type GetTrendingTracksParams = {
 genre?: string;
 limit?: number;
+};
+
+export type GetYoutubeVideoIdParams = {
+title: string;
+artist?: string;
 };
 
 export type GetHistoryParams = {
