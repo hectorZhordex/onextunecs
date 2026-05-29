@@ -8,8 +8,9 @@ import Search from "@/pages/Search";
 import Library from "@/pages/Library";
 import Playlists from "@/pages/Playlists";
 import PlaylistDetail from "@/pages/PlaylistDetail";
+import Login from "@/pages/Login";
 import NotFound from "@/pages/not-found";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -29,9 +30,24 @@ function Router() {
 }
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return !!localStorage.getItem("onetune_user");
+  });
+
   useEffect(() => {
-    document.documentElement.classList.add('dark');
+    document.documentElement.classList.add("dark");
   }, []);
+
+  function handleLogin(username: string) {
+    localStorage.setItem("onetune_user", username);
+    setIsLoggedIn(true);
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <Login onLogin={handleLogin} />
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
