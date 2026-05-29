@@ -60,6 +60,32 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/scheduler")) {
+            return "react-core";
+          }
+          if (id.includes("node_modules/framer-motion")) {
+            return "framer-motion";
+          }
+          if (id.includes("node_modules/@tanstack")) {
+            return "tanstack";
+          }
+          if (id.includes("node_modules/zustand")) {
+            return "zustand";
+          }
+          if (id.includes("node_modules/")) {
+            return "vendor";
+          }
+          if (id.includes("/components/ui/")) {
+            return "ui";
+          }
+        },
+      },
+    },
   },
   server: {
     port,
