@@ -163,7 +163,7 @@ export function FloatingPlayer() {
             onClick={() => setIsExpanded(true)}
             className="fixed bottom-6 left-6 right-6 md:left-72 z-50 cursor-pointer rounded-3xl overflow-hidden"
             style={{
-              background: "rgba(18, 18, 18, 0.92)",
+              background: "rgba(18, 18, 18, 0.65)",
               backdropFilter: "blur(24px)",
               boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3)",
               border: "1px solid rgba(255,255,255,0.08)",
