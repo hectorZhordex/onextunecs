@@ -1,0 +1,103 @@
+🚀 Prompt: Fix Vite + Vercel Build Warnings (Sourcemap + Large Bundle + pnpm)
+
+You are a senior frontend engineer specializing in Vite, React, and Vercel deployments. Fix all build warnings and ensure production-ready output.
+
+❌ Current Issues
+
+During build I am seeing:
+
+Sourcemap error warnings:
+tooltip.tsx (2:0) Error when using sourcemap
+dropdown-menu.tsx (2:0) Error when using sourcemap
+Can't resolve original location of error
+Large bundle warning:
+index.js ~780KB (chunk too large)
+pnpm version mismatch warning:
+Using pnpm@10.x based on project creation date
+🎯 Goal
+
+Make the project:
+
+Vercel production-ready
+No sourcemap warnings
+Optimized bundle size
+Consistent pnpm version usage
+No build warnings affecting deploy stability
+🛠 Required Fixes
+1. Fix sourcemap warnings (Vite config)
+
+Update vite.config.ts:
+
+export default defineConfig({
+  build: {
+    sourcemap: false
+  }
+});
+
+OR (preferred if debugging still needed):
+
+build: {
+  sourcemap: "hidden"
+}
+2. Fix large bundle size (code splitting)
+
+Optimize React build using manual chunk splitting:
+
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks(id) {
+        if (id.includes("node_modules")) {
+          return "vendor";
+        }
+        if (id.includes("/components/ui/")) {
+          return "ui";
+        }
+      }
+    }
+  }
+}
+
+Also implement lazy loading for heavy UI components:
+
+const Tooltip = React.lazy(() => import("./components/ui/tooltip"));
+const DropdownMenu = React.lazy(() => import("./components/ui/dropdown-menu"));
+3. Fix pnpm version consistency (VERY IMPORTANT)
+
+Add to package.json:
+
+{
+  "packageManager": "pnpm@9.15.0"
+}
+
+Then ensure Corepack is enabled:
+
+corepack enable
+corepack prepare pnpm@9.15.0 --activate
+4. Clean dependency installation
+
+Ensure only pnpm is used:
+
+Remove package-lock.json
+Remove yarn.lock
+Keep only pnpm-lock.yaml
+5. Ensure production build is clean
+
+Run:
+
+pnpm install
+pnpm build
+
+Make sure:
+
+No sourcemap errors
+No chunk warnings above critical level
+No pnpm mismatch warnings
+🚀 Final Requirement
+
+After fixes:
+
+Vercel deploy must pass cleanly
+No sourcemap warnings in build logs
+Bundle is optimized and split
+pnpm version is consistent across environments
