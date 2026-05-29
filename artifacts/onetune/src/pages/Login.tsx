@@ -1,54 +1,102 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Mail } from "lucide-react";
 import logoImg from "@assets/dotcom_one_(4)_1780057221014.png";
+import { supabase } from "@/lib/supabase";
 
-interface LoginProps {
-  onLogin: (username: string) => void;
-}
-
-export default function Login({ onLogin }: LoginProps) {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-  const [name, setName] = useState("");
+  const [verificationSent, setVerificationSent] = useState(false);
   const passwordRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     if (!email.trim()) { setError("Please enter your email."); return; }
-    if (password.length < 4) { setError("Password must be at least 4 characters."); return; }
+    if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     if (isSignUp && !name.trim()) { setError("Please enter your name."); return; }
+
     setIsLoading(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setIsLoading(false);
-    const username = isSignUp ? name.trim() : email.split("@")[0];
-    onLogin(username);
+    try {
+      if (isSignUp) {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { display_name: name.trim() },
+          },
+        });
+        if (signUpError) throw signUpError;
+        setVerificationSent(true);
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) throw signInError;
+        // App.tsx onAuthStateChange will detect the new session automatically
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong.";
+      // Make common Supabase error messages more friendly
+      if (msg.includes("Invalid login credentials")) {
+        setError("Wrong email or password.");
+      } else if (msg.includes("already registered") || msg.includes("User already registered")) {
+        setError("This email is already registered. Try signing in.");
+      } else if (msg.includes("Email not confirmed")) {
+        setError("Please check your email and click the verification link first.");
+      } else {
+        setError(msg);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // After sign-up: show "check your inbox" screen
+  if (verificationSent) {
+    return (
+      <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-background">
+        <OrbsBackground />
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-10 w-full max-w-sm mx-4"
+        >
+          <div className="glass-panel p-8 rounded-[2rem] flex flex-col items-center text-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <Mail className="w-7 h-7 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white mb-2">Check your inbox</h2>
+              <p className="text-white/50 text-sm leading-relaxed">
+                We sent a verification email to <span className="text-white font-medium">{email}</span>.<br />
+                Click the link to activate your account, then come back to sign in.
+              </p>
+            </div>
+            <button
+              onClick={() => { setVerificationSent(false); setIsSignUp(false); }}
+              className="w-full py-3 rounded-xl text-sm font-medium text-white/60 hover:text-white border border-white/10 hover:border-white/20 transition-all"
+            >
+              Back to Sign In
+            </button>
+          </div>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center">
-      <div className="absolute inset-0 bg-background" />
+    <div className="relative min-h-screen w-full overflow-hidden flex items-center justify-center bg-background">
+      <OrbsBackground />
 
-      {/* Orbs */}
-      <motion.div
-        className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full opacity-20 blur-[130px] pointer-events-none"
-        style={{ background: "radial-gradient(circle, #ff006b 0%, transparent 70%)" }}
-        animate={{ x: [0, 40, 0], y: [0, -30, 0] }}
-        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] rounded-full opacity-15 blur-[110px] pointer-events-none"
-        style={{ background: "radial-gradient(circle, #ff390d 0%, transparent 70%)" }}
-        animate={{ x: [0, -30, 0], y: [0, 40, 0] }}
-        transition={{ duration: 17, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-      />
-
-      {/* Card */}
       <motion.div
         initial={{ opacity: 0, y: 36, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -64,7 +112,6 @@ export default function Login({ onLogin }: LoginProps) {
               className="w-14 h-14 object-contain"
               animate={{ rotate: [0, 4, -4, 0] }}
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              style={{ filter: "drop-shadow(0 0 14px rgba(255,0,107,0.7))" }}
             />
             <div className="text-center">
               <h1 className="text-2xl font-bold text-white tracking-tight">OneTune</h1>
@@ -78,7 +125,9 @@ export default function Login({ onLogin }: LoginProps) {
               data-testid="button-signin-tab"
               type="button"
               onClick={() => { setIsSignUp(false); setError(""); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${!isSignUp ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-white/40 hover:text-white"}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                !isSignUp ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-white/40 hover:text-white"
+              }`}
             >
               Sign In
             </button>
@@ -86,7 +135,9 @@ export default function Login({ onLogin }: LoginProps) {
               data-testid="button-signup-tab"
               type="button"
               onClick={() => { setIsSignUp(true); setError(""); }}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${isSignUp ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-white/40 hover:text-white"}`}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                isSignUp ? "bg-primary text-white shadow-lg shadow-primary/20" : "text-white/40 hover:text-white"
+              }`}
             >
               Create Account
             </button>
@@ -99,7 +150,7 @@ export default function Login({ onLogin }: LoginProps) {
                 <motion.input
                   key="name-input"
                   data-testid="input-name"
-                  initial={{ opacity: 0, height: 0 }}
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   type="text"
@@ -118,6 +169,7 @@ export default function Login({ onLogin }: LoginProps) {
               onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && passwordRef.current?.focus()}
               placeholder="Email address"
+              autoComplete="email"
               className="w-full glass-card px-4 py-3 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm bg-transparent"
             />
 
@@ -129,7 +181,7 @@ export default function Login({ onLogin }: LoginProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                autoComplete="current-password"
+                autoComplete={isSignUp ? "new-password" : "current-password"}
                 className="w-full glass-card px-4 py-3 pr-11 rounded-xl text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm bg-transparent"
               />
               <button
@@ -176,22 +228,52 @@ export default function Login({ onLogin }: LoginProps) {
             </motion.button>
           </form>
 
-          <div className="mt-4 flex items-center gap-3">
-            <div className="flex-1 h-px bg-white/10" />
-            <span className="text-white/20 text-xs">or</span>
-            <div className="flex-1 h-px bg-white/10" />
-          </div>
-
-          <button
-            data-testid="button-guest-access"
-            type="button"
-            onClick={() => onLogin("Guest")}
-            className="mt-3 w-full py-3 rounded-xl glass-button text-white/40 hover:text-white text-sm font-medium transition-all border border-white/10"
-          >
-            Continue as Guest
-          </button>
+          {!isSignUp && (
+            <p className="mt-4 text-center text-xs text-white/30">
+              Forgot password?{" "}
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!email.trim()) { setError("Enter your email above first."); return; }
+                  setIsLoading(true);
+                  await supabase.auth.resetPasswordForEmail(email.trim());
+                  setIsLoading(false);
+                  setError("");
+                  alert(`Password reset email sent to ${email}`);
+                }}
+                className="text-primary hover:text-primary/80 transition-colors underline underline-offset-2"
+              >
+                Reset it
+              </button>
+            </p>
+          )}
         </div>
       </motion.div>
     </div>
+  );
+}
+
+function OrbsBackground() {
+  return (
+    <>
+      <motion.div
+        className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full opacity-20 blur-[130px] pointer-events-none"
+        style={{ background: "radial-gradient(circle, #ff006b 0%, transparent 70%)" }}
+        animate={{ x: [0, 40, 0], y: [0, -30, 0] }}
+        transition={{ duration: 14, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <motion.div
+        className="absolute bottom-[-15%] right-[-10%] w-[500px] h-[500px] rounded-full opacity-15 blur-[110px] pointer-events-none"
+        style={{ background: "radial-gradient(circle, #ff390d 0%, transparent 70%)" }}
+        animate={{ x: [0, -30, 0], y: [0, 40, 0] }}
+        transition={{ duration: 17, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+      />
+      <motion.div
+        className="absolute top-[40%] left-[30%] w-[400px] h-[400px] rounded-full opacity-10 blur-[100px] pointer-events-none"
+        style={{ background: "radial-gradient(circle, #8b00ff 0%, transparent 70%)" }}
+        animate={{ x: [0, 50, -50, 0], y: [0, 50, 100, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: "easeInOut", delay: 4 }}
+      />
+    </>
   );
 }

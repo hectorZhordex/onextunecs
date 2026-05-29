@@ -12,10 +12,18 @@ import Login from "@/pages/Login";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 
 const queryClient = new QueryClient();
 
-function Router({ username, onLogout }: { username: string; onLogout: () => void }) {
+function Router({ user, onLogout }: { user: User; onLogout: () => void }) {
+  const username =
+    user.user_metadata?.["display_name"] ||
+    user.user_metadata?.["name"] ||
+    user.email?.split("@")[0] ||
+    "User";
+
   return (
     <AppLayout>
       <Switch>
@@ -34,33 +42,46 @@ function Router({ username, onLogout }: { username: string; onLogout: () => void
 }
 
 function App() {
-  const [username, setUsername] = useState<string | null>(() => {
-    return localStorage.getItem("onetune_user");
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
+
+    supabase.auth.getSession().then(({ data }) => {
+      setUser(data.session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => listener.subscription.unsubscribe();
   }, []);
 
-  function handleLogin(name: string) {
-    localStorage.setItem("onetune_user", name);
-    setUsername(name);
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    setUser(null);
   }
 
-  function handleLogout() {
-    localStorage.removeItem("onetune_user");
-    setUsername(null);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
+      </div>
+    );
   }
 
-  if (!username) {
-    return <Login onLogin={handleLogin} />;
+  if (!user) {
+    return <Login />;
   }
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router username={username} onLogout={handleLogout} />
+          <Router user={user} onLogout={handleLogout} />
         </WouterRouter>
         <Toaster />
       </TooltipProvider>
