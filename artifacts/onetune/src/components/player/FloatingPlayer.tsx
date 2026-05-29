@@ -26,12 +26,15 @@ export function FloatingPlayer() {
   const { data: library } = useGetLibrary();
   const isSaved = library?.some((t) => t.trackId === currentTrack?.id);
 
-  // Fetch YouTube video ID
-  const { data: ytData } = useGetYoutubeVideoId(
+  // Fetch YouTube video ID — also track whether it's still loading
+  const { data: ytData, isFetching: ytFetching } = useGetYoutubeVideoId(
     { title: currentTrack?.title ?? "", artist: currentTrack?.artist ?? "" },
     { query: { enabled: !!currentTrack, staleTime: 1000 * 60 * 10 } }
   );
   const videoId = ytData?.videoId ?? null;
+  // While ytFetching is true we don't yet know if YouTube has a match,
+  // so we must NOT start the preview audio yet.
+  const ytResolved = !ytFetching;
 
   // YouTube player hook (no-ops when videoId is null)
   const { currentTime: ytTime, duration: ytDuration, seek: ytSeek } = useYouTubePlayer({
@@ -47,23 +50,25 @@ export function FloatingPlayer() {
   const duration = videoId ? ytDuration : audioDuration;
 
   // Manage fallback audio
+  // Only use the preview AFTER the YouTube lookup has resolved AND returned nothing.
   useEffect(() => {
     if (!audioRef.current) audioRef.current = new Audio();
     const audio = audioRef.current;
 
-    if (!currentTrack?.previewUrl || videoId) {
+    // Stop audio if: YouTube is still loading, YouTube found a video, or no preview available
+    if (!ytResolved || videoId || !currentTrack?.previewUrl) {
       audio.pause();
       return;
     }
 
-    // Load & play/pause fallback audio
+    // YouTube lookup finished with no result — use the 30s preview
     if (audio.src !== currentTrack.previewUrl) {
       audio.src = currentTrack.previewUrl;
       audio.load();
     }
     if (isPlaying) audio.play().catch(console.error);
     else audio.pause();
-  }, [currentTrack?.previewUrl, videoId, isPlaying]);
+  }, [currentTrack?.previewUrl, videoId, ytResolved, isPlaying]);
 
   // Sync fallback audio volume
   useEffect(() => {
