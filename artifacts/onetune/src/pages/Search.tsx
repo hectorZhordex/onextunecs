@@ -76,7 +76,7 @@ export default function Search() {
             exit={{ opacity: 0 }}
             className="text-center text-white/40 mt-10 text-lg"
           >
-            Searching the cosmos...
+            Searching OneTune...
           </motion.div>
         )}
 

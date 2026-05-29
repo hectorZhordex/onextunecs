@@ -28,9 +28,9 @@ export function GlassSidebar() {
         <img
           src={logoImg}
           alt="OneTune"
-          className="w-9 h-9 object-contain drop-shadow-[0_0_8px_rgba(255,0,107,0.6)]"
+          className="w-9 h-9 object-contain"
         />
-        <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
+        <h1 className="text-2xl font-bold tracking-tight text-white">
           OneTune
         </h1>
       </div>
