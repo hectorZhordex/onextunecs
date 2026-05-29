@@ -5,14 +5,15 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 const rawPort = process.env.PORT;
+const isDev = process.env.NODE_ENV !== "production";
 
-if (!rawPort) {
+if (!rawPort && isDev) {
   throw new Error(
     "PORT environment variable is required but was not provided.",
   );
 }
 
-const port = Number(rawPort);
+const port = Number(rawPort ?? "3000");
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
@@ -20,14 +21,16 @@ if (Number.isNaN(port) || port <= 0) {
 
 const basePath = process.env.BASE_PATH;
 
-if (!basePath) {
+if (!basePath && isDev) {
   throw new Error(
     "BASE_PATH environment variable is required but was not provided.",
   );
 }
 
+const resolvedBasePath = basePath ?? "/";
+
 export default defineConfig({
-  base: basePath,
+  base: resolvedBasePath,
   plugins: [
     react(),
     tailwindcss(),
