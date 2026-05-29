@@ -14,15 +14,20 @@ import NotFound from "@/pages/not-found";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { usePlayerStore } from "@/store/player";
+import { AnimatePresence, motion } from "framer-motion";
 
 const queryClient = new QueryClient();
 
-function Router({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const username =
-    user.user_metadata?.["display_name"] ||
-    user.user_metadata?.["name"] ||
-    user.email?.split("@")[0] ||
-    "User";
+const GUEST_TIMEOUT_MS = 60_000; // 1 minute before login prompt
+
+function AppRouter({ user, onLogout }: { user: User | null; onLogout: () => void }) {
+  const username = user
+    ? (user.user_metadata?.["display_name"] ||
+       user.user_metadata?.["name"] ||
+       user.email?.split("@")[0] ||
+       "User")
+    : "Guest";
 
   return (
     <AppLayout>
@@ -44,25 +49,56 @@ function Router({ user, onLogout }: { user: User; onLogout: () => void }) {
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
 
+    let guestTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const startGuestTimer = () => {
+      if (guestTimer) clearTimeout(guestTimer);
+      guestTimer = setTimeout(() => {
+        // Pause any playing music, then show login overlay
+        usePlayerStore.getState().pauseTrack();
+        setShowLogin(true);
+      }, GUEST_TIMEOUT_MS);
+    };
+
     supabase.auth.getSession().then(({ data }) => {
-      setUser(data.session?.user ?? null);
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser);
       setLoading(false);
+      // Only start countdown if not already signed in
+      if (!sessionUser) {
+        startGuestTimer();
+      }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const sessionUser = session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser) {
+        // User just logged in — clear timer and hide overlay
+        if (guestTimer) clearTimeout(guestTimer);
+        setShowLogin(false);
+      }
     });
 
-    return () => listener.subscription.unsubscribe();
+    return () => {
+      listener.subscription.unsubscribe();
+      if (guestTimer) clearTimeout(guestTimer);
+    };
   }, []);
 
   async function handleLogout() {
     await supabase.auth.signOut();
     setUser(null);
+    // After logout, give them 1 minute again before prompting
+    setTimeout(() => {
+      usePlayerStore.getState().pauseTrack();
+      setShowLogin(true);
+    }, GUEST_TIMEOUT_MS);
   }
 
   if (loading) {
@@ -73,17 +109,30 @@ function App() {
     );
   }
 
-  if (!user) {
-    return <Login />;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router user={user} onLogout={handleLogout} />
+          {/* Always show the full app */}
+          <AppRouter user={user} onLogout={handleLogout} />
         </WouterRouter>
         <Toaster />
+
+        {/* Login overlay — slides in after 1 minute if not signed in */}
+        <AnimatePresence>
+          {showLogin && !user && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.4 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center"
+              style={{ backdropFilter: "blur(12px)", background: "rgba(22,22,22,0.75)" }}
+            >
+              <Login />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </TooltipProvider>
     </QueryClientProvider>
   );
