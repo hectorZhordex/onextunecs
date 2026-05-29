@@ -100,6 +100,9 @@ export function TrackCard({ track, tracks }: { track: Track; tracks?: Track[] })
       whileHover={{ y: -4 }}
       className="glass-card group relative p-3 flex flex-col gap-2 cursor-pointer overflow-hidden transition-all duration-300"
       data-testid={`card-track-${track.id}`}
+      style={{
+        boxShadow: "0 20px 60px -8px rgba(0,0,0,0.6), 0 8px 24px -4px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3)",
+      }}
     >
       {/* Artwork */}
       <div className="relative aspect-square rounded-2xl overflow-hidden shadow-md" onClick={handlePlay}>
