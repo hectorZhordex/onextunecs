@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, SkipForward, SkipBack, Volume2, Maximize2, Minimize2, Heart } from "lucide-react";
 import { usePlayerStore } from "@/store/player";
@@ -7,98 +7,91 @@ import {
   useGetYoutubeVideoId,
 } from "@workspace/api-client-react";
 import { cn } from "@/lib/utils";
-import YouTube, { YouTubePlayer } from "react-youtube";
+import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
+
+const YT_CONTAINER_ID = "yt-player-container";
 
 export function FloatingPlayer() {
   const { currentTrack, isPlaying, pauseTrack, resumeTrack, nextTrack, prevTrack, volume, setVolume } =
     usePlayerStore();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
 
-  // YouTube player instance
-  const ytRef = useRef<YouTubePlayer | null>(null);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Fallback audio for tracks without a YouTube ID
+  // Fallback audio state (used when no YouTube ID available)
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [audioTime, setAudioTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
 
   const saveMutation = useSaveToLibrary();
   const removeMutation = useRemoveFromLibrary();
   const { data: library } = useGetLibrary();
   const isSaved = library?.some((t) => t.trackId === currentTrack?.id);
 
-  // Fetch YouTube video ID for current track
+  // Fetch YouTube video ID
   const { data: ytData } = useGetYoutubeVideoId(
     { title: currentTrack?.title ?? "", artist: currentTrack?.artist ?? "" },
     { query: { enabled: !!currentTrack, staleTime: 1000 * 60 * 10 } }
   );
   const videoId = ytData?.videoId ?? null;
 
-  // Poll YouTube current time
-  const startTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(async () => {
-      if (ytRef.current) {
-        try {
-          const t = await ytRef.current.getCurrentTime();
-          const d = await ytRef.current.getDuration();
-          setCurrentTime(t);
-          if (d > 0) setDuration(d);
-        } catch (_) {}
-      }
-    }, 500);
-  }, []);
+  // YouTube player hook (no-ops when videoId is null)
+  const { currentTime: ytTime, duration: ytDuration, seek: ytSeek } = useYouTubePlayer({
+    videoId,
+    isPlaying: !!currentTrack && isPlaying && !!videoId,
+    volume,
+    onEnded: nextTrack,
+    containerId: YT_CONTAINER_ID,
+  });
 
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-  }, []);
+  // Prefer YouTube time/duration; fall back to audio element
+  const currentTime = videoId ? ytTime : audioTime;
+  const duration = videoId ? ytDuration : audioDuration;
 
-  // When track changes — reset state, auto-play when videoId arrives
+  // Manage fallback audio
   useEffect(() => {
-    setCurrentTime(0);
-    setDuration(0);
-    stopTimer();
-    // Also reset fallback audio
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-  }, [currentTrack?.id]);
+    if (!audioRef.current) audioRef.current = new Audio();
+    const audio = audioRef.current;
 
-  // When videoId resolves — play or pause accordingly
-  useEffect(() => {
-    if (!ytRef.current) return;
-    if (videoId) {
-      ytRef.current.loadVideoById(videoId);
-      if (isPlaying) { ytRef.current.playVideo(); startTimer(); }
-      else ytRef.current.pauseVideo();
+    if (!currentTrack?.previewUrl || videoId) {
+      audio.pause();
+      return;
     }
-  }, [videoId]);
 
-  // Play/pause changes
-  useEffect(() => {
-    if (videoId && ytRef.current) {
-      if (isPlaying) { ytRef.current.playVideo(); startTimer(); }
-      else { ytRef.current.pauseVideo(); stopTimer(); }
-    } else if (!videoId && currentTrack?.previewUrl && audioRef.current) {
-      if (isPlaying) audioRef.current.play().catch(console.error);
-      else audioRef.current.pause();
+    // Load & play/pause fallback audio
+    if (audio.src !== currentTrack.previewUrl) {
+      audio.src = currentTrack.previewUrl;
+      audio.load();
     }
-  }, [isPlaying]);
+    if (isPlaying) audio.play().catch(console.error);
+    else audio.pause();
+  }, [currentTrack?.previewUrl, videoId, isPlaying]);
 
-  // Fallback audio: load when track changes and no videoId
-  useEffect(() => {
-    if (!videoId && currentTrack?.previewUrl && audioRef.current) {
-      audioRef.current.src = currentTrack.previewUrl;
-      audioRef.current.load();
-      if (isPlaying) audioRef.current.play().catch(console.error);
-    }
-  }, [currentTrack?.id, videoId]);
-
+  // Sync fallback audio volume
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
-    if (ytRef.current) ytRef.current.setVolume(volume * 100);
   }, [volume]);
 
-  useEffect(() => () => stopTimer(), []);
+  // Fallback audio event listeners
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onTime = () => setAudioTime(audio.currentTime);
+    const onMeta = () => setAudioDuration(audio.duration || 0);
+    const onEnd = () => nextTrack();
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("loadedmetadata", onMeta);
+    audio.addEventListener("ended", onEnd);
+    return () => {
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("loadedmetadata", onMeta);
+      audio.removeEventListener("ended", onEnd);
+    };
+  }, []);
+
+  // Reset times when track changes
+  useEffect(() => {
+    setAudioTime(0);
+    setAudioDuration(0);
+  }, [currentTrack?.id]);
 
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -129,56 +122,30 @@ export function FloatingPlayer() {
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     const t = pct * duration;
-    if (videoId && ytRef.current) ytRef.current.seekTo(t, true);
-    else if (audioRef.current) audioRef.current.currentTime = t;
-    setCurrentTime(t);
+    if (videoId) {
+      ytSeek(t);
+    } else if (audioRef.current) {
+      audioRef.current.currentTime = t;
+      setAudioTime(t);
+    }
   };
 
   const fmt = (s: number) =>
     `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
-  const ytOpts = {
-    height: "1",
-    width: "1",
-    playerVars: { autoplay: 1 as const, controls: 0 as const, rel: 0 as const },
-  };
-
   if (!currentTrack) return null;
 
-  const progressPct = duration ? (currentTime / duration) * 100 : 0;
+  const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
     <>
-      {/* Hidden YouTube player — always mounted when videoId exists */}
-      {videoId && (
-        <div className="fixed -bottom-1 -left-1 opacity-0 pointer-events-none z-0 overflow-hidden" style={{ width: 1, height: 1 }}>
-          <YouTube
-            videoId={videoId}
-            opts={ytOpts}
-            onReady={(e: YouTubeEvent) => {
-              ytRef.current = e.target;
-              e.target.setVolume(volume * 100);
-              if (isPlaying) { e.target.playVideo(); startTimer(); }
-            }}
-            onEnd={() => { stopTimer(); nextTrack(); }}
-            onStateChange={(e: YouTubeEvent) => {
-              // YT.PlayerState.PLAYING = 1
-              if (e.data === 1) startTimer();
-              else stopTimer();
-            }}
-          />
-        </div>
-      )}
-
-      {/* Fallback audio element */}
-      {!videoId && (
-        <audio
-          ref={audioRef}
-          onEnded={nextTrack}
-          onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
-          onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
-        />
-      )}
+      {/* Hidden YouTube player container — always in the DOM */}
+      <div
+        className="fixed pointer-events-none overflow-hidden"
+        style={{ width: 1, height: 1, bottom: -2, left: -2, opacity: 0, zIndex: -1 }}
+      >
+        <div id={YT_CONTAINER_ID} />
+      </div>
 
       {/* Collapsed pill */}
       <AnimatePresence>
@@ -197,7 +164,7 @@ export function FloatingPlayer() {
               border: "1px solid rgba(255,255,255,0.08)",
             }}
           >
-            {/* Progress bar at top of pill */}
+            {/* Progress bar at top */}
             <div className="h-0.5 w-full bg-white/5">
               <div
                 className="h-full bg-gradient-to-r from-primary to-secondary"
@@ -223,26 +190,41 @@ export function FloatingPlayer() {
               </div>
 
               <div className="flex items-center gap-2 md:gap-3">
-                <button onClick={(e) => { e.stopPropagation(); prevTrack(); }} className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+                <button
+                  onClick={(e) => { e.stopPropagation(); prevTrack(); }}
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                >
                   <SkipBack className="w-4 h-4" />
                 </button>
                 <button
                   data-testid="button-play-pause"
                   onClick={togglePlay}
-                  className={cn("w-10 h-10 flex items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105", isPlaying && "neon-box-pink")}
+                  className={cn(
+                    "w-10 h-10 flex items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105",
+                    isPlaying && "neon-box-pink"
+                  )}
                 >
                   {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); nextTrack(); }} className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white transition-colors">
+                <button
+                  onClick={(e) => { e.stopPropagation(); nextTrack(); }}
+                  className="w-8 h-8 flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                >
                   <SkipForward className="w-4 h-4" />
                 </button>
               </div>
 
               <div className="hidden md:flex items-center gap-3 ml-2 pl-4 border-l border-white/10">
-                <button onClick={toggleSave} className={cn("transition-colors", isSaved ? "text-primary" : "text-white/40 hover:text-white")}>
+                <button
+                  onClick={toggleSave}
+                  className={cn("transition-colors", isSaved ? "text-primary" : "text-white/40 hover:text-white")}
+                >
                   <Heart className={cn("w-4 h-4", isSaved && "fill-current neon-glow-pink")} />
                 </button>
-                <button onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }} className="text-white/40 hover:text-white transition-colors">
+                <button
+                  onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                  className="text-white/40 hover:text-white transition-colors"
+                >
                   <Maximize2 className="w-4 h-4" />
                 </button>
               </div>
@@ -292,7 +274,10 @@ export function FloatingPlayer() {
 
               {/* Progress bar */}
               <div className="w-full mb-6">
-                <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden cursor-pointer" onClick={seek}>
+                <div
+                  className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden cursor-pointer"
+                  onClick={seek}
+                >
                   <div
                     className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
                     style={{ width: `${progressPct}%`, transition: "width 0.5s linear" }}
@@ -300,13 +285,16 @@ export function FloatingPlayer() {
                 </div>
                 <div className="flex justify-between text-xs text-white/40 mt-2 font-mono">
                   <span>{fmt(currentTime)}</span>
-                  <span>{duration ? fmt(duration) : "--:--"}</span>
+                  <span>{duration > 0 ? fmt(duration) : "--:--"}</span>
                 </div>
               </div>
 
               {/* Controls */}
               <div className="flex items-center justify-center gap-8 w-full mb-6">
-                <button onClick={toggleSave} className={cn("transition-colors", isSaved ? "text-primary" : "text-white/40 hover:text-white")}>
+                <button
+                  onClick={toggleSave}
+                  className={cn("transition-colors", isSaved ? "text-primary" : "text-white/40 hover:text-white")}
+                >
                   <Heart className={cn("w-6 h-6", isSaved && "fill-current neon-glow-pink")} />
                 </button>
                 <button onClick={prevTrack} className="text-white/60 hover:text-white transition-colors">
@@ -314,7 +302,10 @@ export function FloatingPlayer() {
                 </button>
                 <button
                   onClick={togglePlay}
-                  className={cn("w-20 h-20 flex items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 shadow-xl", isPlaying && "neon-box-pink")}
+                  className={cn(
+                    "w-20 h-20 flex items-center justify-center rounded-full bg-white text-black transition-transform hover:scale-105 shadow-xl",
+                    isPlaying && "neon-box-pink"
+                  )}
                 >
                   {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current ml-1" />}
                 </button>
