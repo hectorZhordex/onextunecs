@@ -57,6 +57,7 @@ export default function Login() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!supabase) { setError("Authentication is not configured."); return; }
     if (!email.trim()) { setError("Please enter your email."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     if (isSignUp && !name.trim()) { setError("Please enter your name."); return; }
@@ -69,7 +70,6 @@ export default function Login() {
           password,
           options: {
             data: { display_name: name.trim() },
-            // Always redirect back to wherever the app is running (dev or deployed)
             emailRedirectTo: window.location.origin,
           },
         });
@@ -272,6 +272,7 @@ export default function Login() {
               <button
                 type="button"
                 onClick={async () => {
+                  if (!supabase) { setError("Authentication is not configured."); return; }
                   if (!email.trim()) { setError("Enter your email above first."); return; }
                   setIsLoading(true);
                   await supabase.auth.resetPasswordForEmail(email.trim(), {

@@ -1,0 +1,124 @@
+❌ ROOT ERROR
+TS2339: Property 'use' does not exist on type 'Express'
+
+in:
+
+artifacts/api-server/src/app.ts
+
+This means:
+
+👉 Your app is typed incorrectly as Express
+👉 TypeScript is NOT recognizing it as a real Express instance
+
+💥 WHY THIS IS HAPPENING
+
+Usually caused by one of these:
+
+❌ 1. Wrong typing
+const app: Express = express(); // ❌ broken in your setup
+❌ 2. Wrong imports
+import express, { Express } from "express";
+
+(or mismatch between types + runtime)
+
+❌ 3. Broken @types/express version conflict (VERY COMMON on Vercel)
+🚀 FIX (COPY-PASTE PROMPT FOR REPLIT AGENT)
+
+Use this exactly:
+
+🔧 Prompt: Fix TS2339 Express .use() Type Error (Vercel Build Failure)
+
+You are a senior Node.js + TypeScript engineer.
+
+Fix a production build error in an Express + TypeScript API deployed on Vercel.
+
+❌ Error
+TS2339: Property 'use' does not exist on type 'Express'
+
+Location:
+
+artifacts/api-server/src/app.ts
+
+Multiple lines using:
+
+app.use()
+middleware registration
+🎯 Goal
+
+Fix TypeScript configuration and Express typing so that:
+
+app.use() works correctly
+build passes on Vercel
+no type casting hacks that break runtime
+clean Express + TypeScript setup
+🛠 REQUIRED FIXES
+✅ 1. Fix Express initialization (MOST IMPORTANT)
+
+Replace ANY incorrect typing like this:
+
+const app: Express = express(); // ❌ REMOVE THIS
+
+Use this safe correct version:
+
+import express from "express";
+
+const app = express();
+✅ 2. Fix imports cleanly
+
+Ensure ONLY this style is used:
+
+import express from "express";
+
+❌ Remove:
+
+import { Express } from "express"
+any mixed default/named patterns causing TS mismatch
+✅ 3. Fix TypeScript config
+
+Ensure tsconfig.json contains:
+
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true
+  }
+}
+✅ 4. Fix dependencies (important)
+
+Run:
+
+npm install express
+npm install -D @types/express
+
+Make sure versions are compatible:
+
+express 4.x + @types/express 4.x
+✅ 5. Ensure no duplicate Express types
+
+Check and remove:
+
+multiple @types/express
+conflicting workspace versions
+duplicate node_modules in monorepo
+✅ 6. Final required app structure
+import express from "express";
+
+const app = express();
+
+app.use(express.json());
+
+// routes...
+export default app;
+🚀 FINAL GOAL
+
+After fix:
+
+app.use() must compile without TS errors
+Vercel build must succeed
+no Express typing hacks or casts
+clean production-ready API server
+⚠️ RULES
+DO NOT change business logic
+DO NOT refactor routes unnecessarily
+ONLY fix TypeScript + Express configuration issues
