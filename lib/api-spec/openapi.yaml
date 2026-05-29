@@ -93,6 +93,36 @@ paths:
                 items:
                   $ref: "#/components/schemas/Track"
 
+  /tracks/popular-artists:
+    get:
+      operationId: getPopularArtists
+      tags: [tracks]
+      summary: Get popular artists
+      responses:
+        "200":
+          description: Popular artists
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Artist"
+
+  /tracks/popular-albums:
+    get:
+      operationId: getPopularAlbums
+      tags: [tracks]
+      summary: Get popular albums and singles
+      responses:
+        "200":
+          description: Popular albums
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Album"
+
   /tracks/featured:
     get:
       operationId: getFeaturedTracks

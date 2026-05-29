@@ -84,6 +84,32 @@ export const GetTrendingTracksResponse = zod.array(GetTrendingTracksResponseItem
 
 
 /**
+ * @summary Get popular artists
+ */
+export const GetPopularArtistsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "artworkUrl": zod.string().nullish(),
+  "genre": zod.string().nullish()
+})
+export const GetPopularArtistsResponse = zod.array(GetPopularArtistsResponseItem)
+
+
+/**
+ * @summary Get popular albums and singles
+ */
+export const GetPopularAlbumsResponseItem = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "artist": zod.string(),
+  "artworkUrl": zod.string().nullish(),
+  "releaseDate": zod.string().nullish(),
+  "trackCount": zod.number().nullish()
+})
+export const GetPopularAlbumsResponse = zod.array(GetPopularAlbumsResponseItem)
+
+
+/**
  * @summary Get featured spotlight tracks for hero section
  */
 export const GetFeaturedTracksResponseItem = zod.object({

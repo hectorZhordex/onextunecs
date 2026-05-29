@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
-import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 
 const ITUNES_BASE = "https://itunes.apple.com";
+const DEEZER_BASE = "https://api.deezer.com";
 
 interface ITunesResult {
   trackId?: number;
@@ -21,15 +21,43 @@ interface ITunesResult {
   primaryGenreName?: string;
   releaseDate?: string;
   trackNumber?: number;
+  trackCount?: number;
 }
 
-function mapTrack(r: ITunesResult) {
+interface DeezerTrack {
+  id: number;
+  title: string;
+  artist: { id: number; name: string; picture_medium?: string };
+  album: { id: number; title: string; cover_medium?: string; cover_big?: string };
+  duration: number;
+  preview?: string;
+}
+
+interface DeezerArtist {
+  id: number;
+  name: string;
+  picture_medium?: string;
+  nb_fan?: number;
+}
+
+interface DeezerAlbum {
+  id: number;
+  title: string;
+  artist: { id: number; name: string };
+  cover_medium?: string;
+  cover_big?: string;
+  release_date?: string;
+  nb_tracks?: number;
+}
+
+function mapItunesTrack(r: ITunesResult) {
+  const art = (r.artworkUrl100 ?? r.artworkUrl60 ?? "").replace("100x100bb", "600x600bb");
   return {
-    id: String(r.trackId ?? r.artistId ?? Math.random()),
+    id: `itunes-${r.trackId}`,
     title: r.trackName ?? "Unknown",
     artist: r.artistName ?? "Unknown",
     album: r.collectionName ?? null,
-    artworkUrl: (r.artworkUrl100 ?? r.artworkUrl60 ?? "").replace("100x100", "600x600"),
+    artworkUrl: art,
     previewUrl: r.previewUrl ?? null,
     durationMs: r.trackTimeMillis ?? null,
     genre: r.primaryGenreName ?? null,
@@ -38,24 +66,74 @@ function mapTrack(r: ITunesResult) {
   };
 }
 
-function mapArtist(r: ITunesResult) {
+function mapItunesArtist(r: ITunesResult) {
   return {
-    id: String(r.artistId),
+    id: `itunes-artist-${r.artistId}`,
     name: r.artistName ?? "Unknown",
     artworkUrl: null,
     genre: r.primaryGenreName ?? null,
   };
 }
 
-function mapAlbum(r: ITunesResult) {
+function mapItunesAlbum(r: ITunesResult) {
+  const art = (r.artworkUrl100 ?? r.artworkUrl60 ?? "").replace("100x100bb", "600x600bb");
   return {
-    id: String(r.collectionId),
+    id: `itunes-album-${r.collectionId}`,
     title: r.collectionName ?? "Unknown",
     artist: r.artistName ?? "Unknown",
-    artworkUrl: (r.artworkUrl100 ?? r.artworkUrl60 ?? "").replace("100x100", "600x600"),
+    artworkUrl: art,
     releaseDate: r.releaseDate ?? null,
-    trackCount: null,
+    trackCount: r.trackCount ?? null,
   };
+}
+
+function mapDeezerTrack(r: DeezerTrack) {
+  return {
+    id: `deezer-${r.id}`,
+    title: r.title,
+    artist: r.artist?.name ?? "Unknown",
+    album: r.album?.title ?? null,
+    artworkUrl: r.album?.cover_big ?? r.album?.cover_medium ?? "",
+    previewUrl: r.preview ?? null,
+    durationMs: r.duration ? r.duration * 1000 : null,
+    genre: null,
+    releaseDate: null,
+    trackNumber: null,
+  };
+}
+
+function mapDeezerArtist(r: DeezerArtist) {
+  return {
+    id: `deezer-artist-${r.id}`,
+    name: r.name,
+    artworkUrl: r.picture_medium ?? null,
+    genre: null,
+  };
+}
+
+function mapDeezerAlbum(r: DeezerAlbum) {
+  return {
+    id: `deezer-album-${r.id}`,
+    title: r.title,
+    artist: r.artist?.name ?? "Unknown",
+    artworkUrl: r.cover_big ?? r.cover_medium ?? null,
+    releaseDate: r.release_date ?? null,
+    trackCount: r.nb_tracks ?? null,
+  };
+}
+
+async function searchItunes(q: string, entity: string, limit: number): Promise<ITunesResult[]> {
+  const url = `${ITUNES_BASE}/search?term=${encodeURIComponent(q)}&media=music&entity=${entity}&limit=${limit}`;
+  const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  const data = (await resp.json()) as { results?: ITunesResult[] };
+  return data.results ?? [];
+}
+
+async function searchDeezer(q: string, type: "track" | "artist" | "album", limit: number): Promise<unknown[]> {
+  const url = `${DEEZER_BASE}/search/${type}?q=${encodeURIComponent(q)}&limit=${limit}`;
+  const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+  const data = (await resp.json()) as { data?: unknown[] };
+  return data.data ?? [];
 }
 
 router.get("/search", async (req, res): Promise<void> => {
@@ -68,21 +146,76 @@ router.get("/search", async (req, res): Promise<void> => {
     return;
   }
 
-  const entity = type === "track" ? "song" : type === "artist" ? "musicArtist" : type === "album" ? "album" : "music";
-  const url = `${ITUNES_BASE}/search?term=${encodeURIComponent(q)}&media=music&entity=${entity}&limit=${limit}`;
-
   try {
-    const resp = await fetch(url);
-    const data = (await resp.json()) as { results: ITunesResult[] };
-    const results = data.results ?? [];
+    if (type === "track") {
+      const [itunesSongs, deezerTracks] = await Promise.allSettled([
+        searchItunes(q, "song", Math.ceil(limit / 2)),
+        searchDeezer(q, "track", Math.floor(limit / 2)),
+      ]);
+      const tracks = [
+        ...(itunesSongs.status === "fulfilled" ? itunesSongs.value.filter(r => r.wrapperType === "track").map(mapItunesTrack) : []),
+        ...(deezerTracks.status === "fulfilled" ? (deezerTracks.value as DeezerTrack[]).map(mapDeezerTrack) : []),
+      ].slice(0, limit);
+      res.json({ tracks, artists: [], albums: [] });
+      return;
+    }
 
-    const tracks = results.filter((r) => r.wrapperType === "track" && r.kind === "song").map(mapTrack);
-    const artists = results.filter((r) => r.wrapperType === "artist").map(mapArtist);
-    const albums = results.filter((r) => r.wrapperType === "collection").map(mapAlbum);
+    if (type === "artist") {
+      const [itunesArtists, deezerArtists] = await Promise.allSettled([
+        searchItunes(q, "musicArtist", Math.ceil(limit / 2)),
+        searchDeezer(q, "artist", Math.floor(limit / 2)),
+      ]);
+      const artists = [
+        ...(itunesArtists.status === "fulfilled" ? itunesArtists.value.filter(r => r.wrapperType === "artist").map(mapItunesArtist) : []),
+        ...(deezerArtists.status === "fulfilled" ? (deezerArtists.value as DeezerArtist[]).map(mapDeezerArtist) : []),
+      ].slice(0, limit);
+      res.json({ tracks: [], artists, albums: [] });
+      return;
+    }
+
+    if (type === "album") {
+      const [itunesAlbums, deezerAlbums] = await Promise.allSettled([
+        searchItunes(q, "album", Math.ceil(limit / 2)),
+        searchDeezer(q, "album", Math.floor(limit / 2)),
+      ]);
+      const albums = [
+        ...(itunesAlbums.status === "fulfilled" ? itunesAlbums.value.filter(r => r.wrapperType === "collection").map(mapItunesAlbum) : []),
+        ...(deezerAlbums.status === "fulfilled" ? (deezerAlbums.value as DeezerAlbum[]).map(mapDeezerAlbum) : []),
+      ].slice(0, limit);
+      res.json({ tracks: [], artists: [], albums });
+      return;
+    }
+
+    // type === "all" — parallel requests for each type
+    const perType = Math.ceil(limit / 2);
+    const [itunesSongs, itunesArtists, itunesAlbums, deezerTracks, deezerArtists, deezerAlbums] =
+      await Promise.allSettled([
+        searchItunes(q, "song", perType),
+        searchItunes(q, "musicArtist", 6),
+        searchItunes(q, "album", 6),
+        searchDeezer(q, "track", perType),
+        searchDeezer(q, "artist", 6),
+        searchDeezer(q, "album", 6),
+      ]);
+
+    const tracks = [
+      ...(itunesSongs.status === "fulfilled" ? itunesSongs.value.filter(r => r.wrapperType === "track").map(mapItunesTrack) : []),
+      ...(deezerTracks.status === "fulfilled" ? (deezerTracks.value as DeezerTrack[]).map(mapDeezerTrack) : []),
+    ].slice(0, limit);
+
+    const artists = [
+      ...(itunesArtists.status === "fulfilled" ? itunesArtists.value.filter(r => r.wrapperType === "artist").map(mapItunesArtist) : []),
+      ...(deezerArtists.status === "fulfilled" ? (deezerArtists.value as DeezerArtist[]).map(mapDeezerArtist) : []),
+    ].slice(0, 12);
+
+    const albums = [
+      ...(itunesAlbums.status === "fulfilled" ? itunesAlbums.value.filter(r => r.wrapperType === "collection").map(mapItunesAlbum) : []),
+      ...(deezerAlbums.status === "fulfilled" ? (deezerAlbums.value as DeezerAlbum[]).map(mapDeezerAlbum) : []),
+    ].slice(0, 12);
 
     res.json({ tracks, artists, albums });
   } catch (err) {
-    req.log.error({ err }, "iTunes search failed");
+    req.log.error({ err }, "Search failed");
     res.json({ tracks: [], artists: [], albums: [] });
   }
 });
@@ -90,33 +223,87 @@ router.get("/search", async (req, res): Promise<void> => {
 router.get("/tracks/trending", async (req, res): Promise<void> => {
   const genre = String(req.query.genre ?? "").trim() || "pop";
   const limit = Math.min(Number(req.query.limit ?? 20), 50);
-
-  const url = `${ITUNES_BASE}/search?term=${encodeURIComponent(genre)}&media=music&entity=song&limit=${limit}&sort=recent`;
+  const perSource = Math.ceil(limit / 2);
 
   try {
-    const resp = await fetch(url);
-    const data = (await resp.json()) as { results: ITunesResult[] };
-    const tracks = (data.results ?? []).filter((r) => r.wrapperType === "track").map(mapTrack);
+    const [itunesResult, deezerResult] = await Promise.allSettled([
+      searchItunes(genre, "song", perSource),
+      searchDeezer(genre, "track", perSource),
+    ]);
+
+    const tracks = [
+      ...(itunesResult.status === "fulfilled" ? itunesResult.value.filter(r => r.wrapperType === "track").map(mapItunesTrack) : []),
+      ...(deezerResult.status === "fulfilled" ? (deezerResult.value as DeezerTrack[]).map(mapDeezerTrack) : []),
+    ].slice(0, limit);
+
     res.json(tracks);
   } catch (err) {
-    req.log.error({ err }, "iTunes trending failed");
+    req.log.error({ err }, "Trending failed");
+    res.json([]);
+  }
+});
+
+router.get("/tracks/popular-artists", async (req, res): Promise<void> => {
+  const genres = ["pop", "hip-hop", "r&b", "rock", "electronic", "latin"];
+  const randomGenre = genres[Math.floor(Math.random() * genres.length)];
+
+  try {
+    const [itunesArtists, deezerArtists] = await Promise.allSettled([
+      searchItunes(randomGenre, "musicArtist", 6),
+      searchDeezer(randomGenre, "artist", 6),
+    ]);
+
+    const artists = [
+      ...(itunesArtists.status === "fulfilled" ? itunesArtists.value.filter(r => r.wrapperType === "artist").map(mapItunesArtist) : []),
+      ...(deezerArtists.status === "fulfilled" ? (deezerArtists.value as DeezerArtist[]).map(mapDeezerArtist) : []),
+    ].slice(0, 10);
+
+    res.json(artists);
+  } catch (err) {
+    req.log.error({ err }, "Popular artists failed");
+    res.json([]);
+  }
+});
+
+router.get("/tracks/popular-albums", async (req, res): Promise<void> => {
+  const term = "top albums 2024";
+
+  try {
+    const [itunesAlbums, deezerAlbums] = await Promise.allSettled([
+      searchItunes(term, "album", 8),
+      searchDeezer(term, "album", 8),
+    ]);
+
+    const albums = [
+      ...(itunesAlbums.status === "fulfilled" ? itunesAlbums.value.filter(r => r.wrapperType === "collection").map(mapItunesAlbum) : []),
+      ...(deezerAlbums.status === "fulfilled" ? (deezerAlbums.value as DeezerAlbum[]).map(mapDeezerAlbum) : []),
+    ].slice(0, 12);
+
+    res.json(albums);
+  } catch (err) {
+    req.log.error({ err }, "Popular albums failed");
     res.json([]);
   }
 });
 
 router.get("/tracks/featured", async (req, res): Promise<void> => {
-  const queries = ["Taylor Swift", "The Weeknd", "Drake", "Beyonce", "Ed Sheeran"];
-  const picked = queries[Math.floor(Math.random() * queries.length)];
-
-  const url = `${ITUNES_BASE}/search?term=${encodeURIComponent(picked)}&media=music&entity=song&limit=5`;
+  const queries = ["Taylor Swift", "The Weeknd", "Drake", "Beyonce", "Bad Bunny"];
+  const picked = queries[Math.floor(Date.now() / 3600000) % queries.length];
 
   try {
-    const resp = await fetch(url);
-    const data = (await resp.json()) as { results: ITunesResult[] };
-    const tracks = (data.results ?? []).filter((r) => r.wrapperType === "track").map(mapTrack);
-    res.json(tracks.slice(0, 5));
+    const [itunesResult, deezerResult] = await Promise.allSettled([
+      searchItunes(picked, "song", 4),
+      searchDeezer(picked, "track", 4),
+    ]);
+
+    const tracks = [
+      ...(itunesResult.status === "fulfilled" ? itunesResult.value.filter(r => r.wrapperType === "track").map(mapItunesTrack) : []),
+      ...(deezerResult.status === "fulfilled" ? (deezerResult.value as DeezerTrack[]).map(mapDeezerTrack) : []),
+    ].slice(0, 5);
+
+    res.json(tracks);
   } catch (err) {
-    req.log.error({ err }, "iTunes featured failed");
+    req.log.error({ err }, "Featured failed");
     res.json([]);
   }
 });
@@ -140,19 +327,26 @@ router.get("/tracks/genres", async (_req, res): Promise<void> => {
 router.get("/tracks/:id", async (req, res): Promise<void> => {
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-  const url = `${ITUNES_BASE}/lookup?id=${encodeURIComponent(id)}&media=music`;
+  // Deezer track
+  if (id.startsWith("deezer-") && !id.includes("artist") && !id.includes("album")) {
+    const deezerIdStr = id.replace("deezer-", "");
+    try {
+      const resp = await fetch(`${DEEZER_BASE}/track/${deezerIdStr}`);
+      const r = (await resp.json()) as DeezerTrack;
+      if (r?.id) { res.json(mapDeezerTrack(r)); return; }
+    } catch (_) { /* fall through */ }
+  }
 
+  // iTunes track
+  const numericId = id.replace("itunes-", "");
   try {
-    const resp = await fetch(url);
+    const resp = await fetch(`${ITUNES_BASE}/lookup?id=${encodeURIComponent(numericId)}&media=music`);
     const data = (await resp.json()) as { results: ITunesResult[] };
     const result = data.results?.[0];
-    if (!result) {
-      res.status(404).json({ error: "Track not found" });
-      return;
-    }
-    res.json(mapTrack(result));
+    if (!result) { res.status(404).json({ error: "Track not found" }); return; }
+    res.json(mapItunesTrack(result));
   } catch (err) {
-    req.log.error({ err }, "iTunes lookup failed");
+    req.log.error({ err }, "Track lookup failed");
     res.status(500).json({ error: "Failed to fetch track" });
   }
 });

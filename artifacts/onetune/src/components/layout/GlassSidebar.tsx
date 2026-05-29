@@ -1,66 +1,85 @@
 import { Link, useLocation } from "wouter";
-import { Home, Search, Library, ListMusic } from "lucide-react";
+import { Home, Search, Library, ListMusic, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import logoImg from "@assets/dotcom_one_(4)_1780057221014.png";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
   { href: "/search", label: "Search", icon: Search },
   { href: "/library", label: "Library", icon: Library },
   { href: "/playlists", label: "Playlists", icon: ListMusic },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 export function GlassSidebar() {
   const [location] = useLocation();
+  const username = localStorage.getItem("onetune_user") ?? "User";
+  const initials = username
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <aside className="glass-sidebar fixed left-0 top-0 bottom-0 w-64 z-40 hidden md:flex flex-col p-6">
-      <div className="flex items-center gap-3 mb-12 px-2">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-secondary flex items-center justify-center neon-box-pink">
-          <div className="w-3 h-3 bg-white rounded-full" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+      {/* Logo */}
+      <div className="flex items-center gap-3 mb-10 px-1">
+        <img
+          src={logoImg}
+          alt="OneTune"
+          className="w-9 h-9 object-contain drop-shadow-[0_0_8px_rgba(255,0,107,0.6)]"
+        />
+        <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">
           OneTune
         </h1>
       </div>
 
-      <nav className="flex-1 space-y-2">
+      {/* Nav */}
+      <nav className="flex-1 space-y-1">
         {NAV_ITEMS.map((item) => {
-          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+          const isActive =
+            location === item.href ||
+            (item.href !== "/" && location.startsWith(item.href));
           return (
             <Link key={item.href} href={item.href}>
               <div
                 data-testid={`link-${item.label.toLowerCase()}`}
                 className={cn(
-                  "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 cursor-pointer group",
+                  "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 cursor-pointer group",
                   isActive
-                    ? "bg-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]"
-                    : "text-white/60 hover:text-white hover:bg-white/5"
+                    ? "bg-white/10 text-white"
+                    : "text-white/50 hover:text-white hover:bg-white/5"
                 )}
               >
                 <item.icon
                   className={cn(
-                    "w-5 h-5 transition-transform duration-300 group-hover:scale-110",
-                    isActive && "text-primary neon-glow-pink"
+                    "w-5 h-5 flex-none transition-transform duration-200 group-hover:scale-110",
+                    isActive && "text-primary"
                   )}
                 />
-                <span className="font-medium">{item.label}</span>
+                <span className="font-medium text-sm">{item.label}</span>
+                {isActive && (
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
+                )}
               </div>
             </Link>
           );
         })}
       </nav>
-      
-      <div className="mt-auto pt-6 border-t border-white/10">
-        <div className="flex items-center gap-3 px-2">
-          <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 overflow-hidden flex items-center justify-center">
-            <span className="text-sm font-medium">U</span>
+
+      {/* User */}
+      <Link href="/profile">
+        <div className="mt-auto pt-5 border-t border-white/10 flex items-center gap-3 px-1 cursor-pointer hover:opacity-80 transition-opacity">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/60 to-secondary/60 border border-white/20 flex items-center justify-center text-xs font-bold text-white">
+            {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">User</p>
-            <p className="text-xs text-white/50 truncate">Premium</p>
+            <p className="text-sm font-semibold text-white truncate">{username}</p>
+            <p className="text-xs text-white/40">OneTune Member</p>
           </div>
         </div>
-      </div>
+      </Link>
     </aside>
   );
 }

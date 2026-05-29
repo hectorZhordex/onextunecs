@@ -20,6 +20,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  Album,
+  Artist,
   Genre,
   GetHistoryParams,
   GetTrendingTracksParams,
@@ -285,6 +287,160 @@ export function useGetTrendingTracks<TData = Awaited<ReturnType<typeof getTrendi
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetTrendingTracksQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPopularArtistsUrl = () => {
+
+
+
+
+  return `/api/tracks/popular-artists`
+}
+
+/**
+ * @summary Get popular artists
+ */
+export const getPopularArtists = async ( options?: RequestInit): Promise<Artist[]> => {
+
+  return customFetch<Artist[]>(getGetPopularArtistsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPopularArtistsQueryKey = () => {
+    return [
+    `/api/tracks/popular-artists`
+    ] as const;
+    }
+
+
+export const getGetPopularArtistsQueryOptions = <TData = Awaited<ReturnType<typeof getPopularArtists>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPopularArtists>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPopularArtistsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPopularArtists>>> = ({ signal }) => getPopularArtists({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPopularArtists>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPopularArtistsQueryResult = NonNullable<Awaited<ReturnType<typeof getPopularArtists>>>
+export type GetPopularArtistsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get popular artists
+ */
+
+export function useGetPopularArtists<TData = Awaited<ReturnType<typeof getPopularArtists>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPopularArtists>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPopularArtistsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetPopularAlbumsUrl = () => {
+
+
+
+
+  return `/api/tracks/popular-albums`
+}
+
+/**
+ * @summary Get popular albums and singles
+ */
+export const getPopularAlbums = async ( options?: RequestInit): Promise<Album[]> => {
+
+  return customFetch<Album[]>(getGetPopularAlbumsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetPopularAlbumsQueryKey = () => {
+    return [
+    `/api/tracks/popular-albums`
+    ] as const;
+    }
+
+
+export const getGetPopularAlbumsQueryOptions = <TData = Awaited<ReturnType<typeof getPopularAlbums>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPopularAlbums>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetPopularAlbumsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPopularAlbums>>> = ({ signal }) => getPopularAlbums({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPopularAlbums>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetPopularAlbumsQueryResult = NonNullable<Awaited<ReturnType<typeof getPopularAlbums>>>
+export type GetPopularAlbumsQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Get popular albums and singles
+ */
+
+export function useGetPopularAlbums<TData = Awaited<ReturnType<typeof getPopularAlbums>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getPopularAlbums>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetPopularAlbumsQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
