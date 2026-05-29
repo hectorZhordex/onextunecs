@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "OneTune"
+version = "1.0.0"
+id = "artifacts/onetune"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 21796
+
+[services.development]
+run = "pnpm --filter @workspace/onetune run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/onetune", "run", "build" ]
+publicDir = "artifacts/onetune/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "21796"
+BASE_PATH = "/"
