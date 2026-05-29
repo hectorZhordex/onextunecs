@@ -1,12 +1,9 @@
 {
-  "buildCommand": "pnpm --filter @workspace/onetune run build",
+  "buildCommand": "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/onetune run build",
   "outputDirectory": "artifacts/onetune/dist/public",
   "installCommand": "pnpm install",
-  "typescript": {
-    "ignoreBuildErrors": true
-  },
   "functions": {
-    "api/index.ts": {
+    "api/index.mjs": {
       "maxDuration": 30
     }
   },
