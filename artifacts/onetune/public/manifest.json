@@ -1,0 +1,18 @@
+{
+  "name": "OneTune – Stream Music, Discover Songs & Create Playlists",
+  "short_name": "OneTune",
+  "description": "Stream music, discover artists, and create playlists with OneTune.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#222222",
+  "theme_color": "#ff006b",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

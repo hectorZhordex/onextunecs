@@ -94,7 +94,11 @@ function GetAppModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function GlassSidebar() {
+interface GlassSidebarProps {
+  onNavigate?: () => void;
+}
+
+export function GlassSidebar({ onNavigate }: GlassSidebarProps = {}) {
   const [location] = useLocation();
   const [showGetApp, setShowGetApp] = useState(false);
   const username = localStorage.getItem("onetune_user") ?? "User";
@@ -107,11 +111,17 @@ export function GlassSidebar() {
 
   return (
     <>
-      <aside className="glass-sidebar fixed left-0 top-0 bottom-0 w-64 z-40 hidden md:flex flex-col p-6">
-        {/* Logo */}
-        <div className="flex items-center gap-3 mb-10 px-1">
+      <aside className="glass-sidebar h-full w-64 md:fixed md:left-0 md:top-0 md:bottom-0 z-40 flex flex-col p-6">
+        {/* Logo — hidden on mobile (top bar handles it), visible on desktop */}
+        <div className="hidden md:flex items-center gap-3 mb-10 px-1">
           <img src={logoImg} alt="OneTune" className="w-9 h-9 object-contain" />
           <h1 className="text-2xl font-bold tracking-tight text-white">OneTune</h1>
+        </div>
+
+        {/* Logo shown in mobile drawer */}
+        <div className="md:hidden flex items-center gap-3 mb-8 px-1 pt-2">
+          <img src={logoImg} alt="OneTune" className="w-9 h-9 object-contain" />
+          <h1 className="text-xl font-bold tracking-tight text-white">OneTune</h1>
         </div>
 
         {/* Nav */}
@@ -124,6 +134,7 @@ export function GlassSidebar() {
               <Link key={item.href} href={item.href}>
                 <div
                   data-testid={`link-${item.label.toLowerCase()}`}
+                  onClick={onNavigate}
                   className={cn(
                     "flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-200 cursor-pointer group",
                     isActive
@@ -147,7 +158,7 @@ export function GlassSidebar() {
           })}
         </nav>
 
-        {/* Get App widget — sits above the profile */}
+        {/* Get App widget */}
         <button
           onClick={() => setShowGetApp(true)}
           className="mb-4 w-full rounded-2xl p-4 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] group"
@@ -173,7 +184,10 @@ export function GlassSidebar() {
 
         {/* User */}
         <Link href="/profile">
-          <div className="pt-5 border-t border-white/10 flex items-center gap-3 px-1 cursor-pointer hover:opacity-80 transition-opacity">
+          <div
+            onClick={onNavigate}
+            className="pt-5 border-t border-white/10 flex items-center gap-3 px-1 cursor-pointer hover:opacity-80 transition-opacity"
+          >
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/60 to-secondary/60 border border-white/20 flex items-center justify-center text-xs font-bold text-white">
               {initials}
             </div>
